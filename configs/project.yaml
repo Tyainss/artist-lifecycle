@@ -1,0 +1,28 @@
+project_name: "artist-lifecycle"
+user_agent: "artist-lifecycle/1.0"
+
+# Logging info
+logging:
+  level: "INFO"
+  fmt: "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+  datefmt: "%Y-%m-%d %H:%M:%S"
+
+# Data layout
+paths:
+  curated: "data/curated"
+  processed: "data/processed"
+  features: "data/features"
+  models: "data/models"
+  metrics: "data/metrics"
+
+breakout:
+  snapshots_filename: "artist_month_snapshots.csv"
+  features_filename: "breakout_features.csv"
+
+time:
+  timezone: "UTC"
+
+split:
+  train_frac: 0.6
+  val_frac: 0.2
+  test_frac: 0.2
