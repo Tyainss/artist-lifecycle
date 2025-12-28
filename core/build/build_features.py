@@ -14,11 +14,16 @@ def validate_snapshots_input(df: pd.DataFrame) -> None:
         "month",
         "artist_name",
         "plays_t",
+        "unique_tracks_t",
+        "plays_per_track_t",
         "days_active_t",
         "last_play_gap_days_t",
         "share_t",
+        "total_monthly_scrobbles",
         "first_seen_month",
         "months_since_first_seen",
+        "is_first_month",
+        "track_novelty_rate_t",
     ]
     missing = [c for c in required if c not in df.columns]
     if missing:
@@ -59,6 +64,23 @@ def add_delta_1m(df: pd.DataFrame) -> pd.DataFrame:
     out["delta_1m"] = (out["plays_t"] - out["plays_t_minus_1"]).astype("Int64")
     return out
 
+def add_delta_1m_pct(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Percentage change vs previous month.
+    If previous month plays == 0, delta_1m_pct is NaN and we expose a flag.
+    """
+    out = df.copy()
+    if "delta_1m" not in out.columns:
+        raise ValueError("delta_1m must exist before calling add_delta_1m_pct()")
+    if "plays_t_minus_1" not in out.columns:
+        raise ValueError("plays_t_minus_1 must exist before calling add_delta_1m_pct()")
+
+    prev = out["plays_t_minus_1"].astype(float)
+    out["prev_month_plays_was_zero"] = (prev == 0).astype(int)
+
+    denom = prev.replace(0, np.nan)
+    out["delta_1m_pct"] = (out["delta_1m"].astype(float) / denom).astype(float)
+    return out
 
 def add_ratio_to_prev3(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
@@ -132,6 +154,7 @@ def add_momentum_family(df: pd.DataFrame) -> pd.DataFrame:
     out = add_plays_lag_1m(df)
     out = add_plays_prev3_mean(out)
     out = add_delta_1m(out)
+    out = add_delta_1m_pct(out)
     out = add_ratio_to_prev3(out)
     out = add_trend_slope_3m(out)
     return out
@@ -169,19 +192,30 @@ def build_breakout_features(snapshots: pd.DataFrame) -> pd.DataFrame:
         "artist_name",
         "first_seen_month",
         "months_since_first_seen",
+        "is_first_month",
         "plays_t",
+        "unique_tracks_t",
+        "plays_per_track_t",
         "days_active_t",
         "last_play_gap_days_t",
+        "track_novelty_rate_t",
         "share_t",
+        "total_monthly_scrobbles",
         "plays_t_minus_1",
         "plays_prev3_mean",
         "delta_1m",
+        "delta_1m_pct",
+        "prev_month_plays_was_zero",
         "ratio_to_prev3",
         "trend_slope_3m",
         "cumulative_plays_before_t",
         "active_months_count_before_t",
         "share_delta_1m",
     ]
+
+    if "genre_bucket" in df.columns:
+        cols.append("genre_bucket")
+
     out = (
         df[cols]
         .sort_values(["month", "artist_name"], kind="stable")
