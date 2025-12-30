@@ -4,3 +4,6 @@ labels:
 core_definition:
   plays_min: 20
   share_min: 0.01
+
+features:
+  enforce_month_grid: true

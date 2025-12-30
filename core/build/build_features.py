@@ -33,6 +33,65 @@ def validate_snapshots_input(df: pd.DataFrame) -> None:
 def _ensure_sorted(df: pd.DataFrame) -> pd.DataFrame:
     return df.sort_values(["artist_name", "month"], kind="stable").reset_index(drop=True)
 
+def ensure_full_month_grid_per_artist(snapshots: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ensures each artist has a row for every calendar month from first_seen_month to the global max month.
+    """
+    df = snapshots.copy()
+
+    max_month = df["month"].max()
+
+    month_totals = (
+        df[["month", "total_monthly_scrobbles"]]
+        .drop_duplicates(subset=["month"])
+        .sort_values("month", kind="stable")
+        .reset_index(drop=True)
+    )
+
+    artists = (
+        df[["artist_name", "first_seen_month"]]
+        .drop_duplicates(subset=["artist_name"])
+        .sort_values("artist_name", kind="stable")
+        .reset_index(drop=True)
+    )
+
+    rows = []
+    for artist_name, first_seen_month in artists.itertuples(index=False):
+        months = pd.date_range(start=first_seen_month, end=max_month, freq="MS")
+        tmp = pd.DataFrame({"artist_name": artist_name, "month": months})
+        tmp["first_seen_month"] = first_seen_month
+        rows.append(tmp)
+
+    grid = pd.concat(rows, ignore_index=True)
+    out = grid.merge(df, on=["artist_name", "month", "first_seen_month"], how="left", sort=False)
+
+    # Fill month totals for inserted rows
+    out = out.drop(columns=["total_monthly_scrobbles"]).merge(month_totals, on="month", how="left", sort=False)
+
+    # Inserted months = no plays
+    fill_zero_int = ["plays_t", "unique_tracks_t", "days_active_t", "is_first_month"]
+    for c in fill_zero_int:
+        if c in out.columns:
+            out[c] = out[c].fillna(0).astype("Int64")
+
+    fill_zero_float = ["plays_per_track_t", "track_novelty_rate_t", "share_t"]
+    for c in fill_zero_float:
+        if c in out.columns:
+            out[c] = out[c].fillna(0.0).astype(float)
+
+    # last_play_gap_days_t: undefined if no plays; keep NaN for now
+    if "last_play_gap_days_t" in out.columns:
+        out["last_play_gap_days_t"] = out["last_play_gap_days_t"].astype(float)
+
+    # Recompute months_since_first_seen and is_first_month for inserted rows
+    out["months_since_first_seen"] = (
+        (out["month"].dt.year - out["first_seen_month"].dt.year) * 12
+        + (out["month"].dt.month - out["first_seen_month"].dt.month)
+    ).astype("Int64")
+    out["is_first_month"] = (out["months_since_first_seen"] == 0).astype("Int64")
+
+
+    return _ensure_sorted(out)
 
 # ===========================
 # Single-column helpers
@@ -174,7 +233,7 @@ def add_share_family(df: pd.DataFrame) -> pd.DataFrame:
 # ===========================
 # Core V1 composition
 # ===========================
-def build_breakout_features(snapshots: pd.DataFrame) -> pd.DataFrame:
+def build_breakout_features(snapshots: pd.DataFrame, enforce_month_grid: bool = False) -> pd.DataFrame:
     """
     Build leakage-safe breakout features from artist-month snapshots.
     Features use only months <= t (with explicit shift for "before_t" features).
@@ -182,6 +241,8 @@ def build_breakout_features(snapshots: pd.DataFrame) -> pd.DataFrame:
     validate_snapshots_input(snapshots)
 
     df = _ensure_sorted(snapshots.copy())
+    if enforce_month_grid:
+        df = ensure_full_month_grid_per_artist(df)
 
     df = add_momentum_family(df)
     df = add_history_family(df)
