@@ -213,8 +213,8 @@ def add_momentum_family(df: pd.DataFrame) -> pd.DataFrame:
     out = add_plays_lag_1m(df)
     out = add_plays_prev3_mean(out)
     out = add_delta_1m(out)
-    out = add_delta_1m_pct(out)
-    out = add_ratio_to_prev3(out)
+    # out = add_delta_1m_pct(out)
+    # out = add_ratio_to_prev3(out)
     out = add_trend_slope_3m(out)
     return out
 
@@ -226,7 +226,8 @@ def add_history_family(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_share_family(df: pd.DataFrame) -> pd.DataFrame:
-    out = add_share_delta_1m(df)
+    out = df.copy()
+    # out = add_share_delta_1m(df)
     return out
 
 
@@ -265,13 +266,13 @@ def build_breakout_features(snapshots: pd.DataFrame, enforce_month_grid: bool = 
         "plays_t_minus_1",
         "plays_prev3_mean",
         "delta_1m",
-        "delta_1m_pct",
-        "prev_month_plays_was_zero",
-        "ratio_to_prev3",
+        # "delta_1m_pct",
+        # "prev_month_plays_was_zero",
+        # "ratio_to_prev3",
         "trend_slope_3m",
         "cumulative_plays_before_t",
         "active_months_count_before_t",
-        "share_delta_1m",
+        # "share_delta_1m",
     ]
 
     if "genre_bucket" in df.columns:
