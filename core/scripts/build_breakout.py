@@ -93,13 +93,59 @@ def main(repo_root: Path) -> None:
     snapshots.to_csv(snapshots_out, index=False)
     logger.info(f"Wrote snapshots: {snapshots_out} | rows={len(snapshots)}")
 
-    enforce_month_grid = (
-        breakout_cfg.get("features", {}).get("enforce_month_grid", False)
-    )
-    logger.info(f"Building breakout features | enforce_month_grid={enforce_month_grid}")
-    features = build_breakout_features(snapshots, enforce_month_grid=enforce_month_grid)
+    features_cfg = breakout_cfg.get("features", {})
 
-    features_filename = project_cfg["breakout"]["features_filename"]
+    enforce_month_grid = features_cfg.get("enforce_month_grid", False)
+
+    feature_set = features_cfg.get("feature_set", "full")
+    feature_sets = features_cfg.get("feature_sets", {})
+    if not isinstance(feature_sets, dict):
+        raise ValueError("breakout.features.feature_sets must be a mapping (dict).")
+
+    feature_set_cfg = feature_sets.get(feature_set)
+    if feature_set_cfg is None:
+        available = sorted(feature_sets.keys())
+        raise ValueError(
+            f"Unknown breakout.features.feature_set='{feature_set}'. "
+            f"Available: {available}"
+        )
+
+    drop_cols = feature_set_cfg.get("drop_cols", [])
+    if not isinstance(drop_cols, list) or not all(isinstance(x, str) for x in drop_cols):
+        raise ValueError(
+            f"breakout.features.feature_sets.{feature_set}.drop_cols must be a list of strings."
+        )
+
+    logger.info(
+        f"Building breakout features | enforce_month_grid={enforce_month_grid} | "
+        f"feature_set={feature_set} | drop_cols={drop_cols}"
+    )
+    features = build_breakout_features(
+        snapshots,
+        enforce_month_grid=enforce_month_grid,
+        drop_cols=drop_cols,
+    )
+
+    # Choose output filename by feature_set (so reduced sets don't overwrite canonical full output)
+    features_filename_by_set = features_cfg.get("features_filename_by_set", {})
+    if features_filename_by_set:
+        if not isinstance(features_filename_by_set, dict):
+            raise ValueError("breakout.features.features_filename_by_set must be a mapping (dict).")
+        if feature_set not in features_filename_by_set:
+            available = sorted(features_filename_by_set.keys())
+            raise ValueError(
+                f"Missing features_filename_by_set entry for feature_set='{feature_set}'. "
+                f"Available: {available}"
+            )
+        features_filename = features_filename_by_set[feature_set]
+        if not isinstance(features_filename, str) or not features_filename.strip():
+            raise ValueError(
+                f"Invalid features_filename_by_set['{feature_set}']: must be a non-empty string."
+            )
+    else:
+        # Fallback to project.yaml default
+        features_filename = project_cfg["breakout"]["features_filename"]
+        
     features_out = features_dir / features_filename
     features.to_csv(features_out, index=False)
     logger.info(f"Wrote features: {features_out} | rows={len(features)}")

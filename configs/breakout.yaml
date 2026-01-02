@@ -7,3 +7,19 @@ core_definition:
 
 features:
   enforce_month_grid: true
+
+feature_set: "v1_reduced"
+
+features_filename_by_set:
+  full: "breakout_features.csv"
+  v1_reduced: "breakout_features_v1_reduced.csv"
+
+feature_sets:
+  full:
+    drop_cols: []
+
+  v1_reduced:
+    drop_cols:
+      - cumulative_plays_before_t
+      - unique_tracks_t
+      - plays_t_minus_1
