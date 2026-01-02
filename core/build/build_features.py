@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +235,11 @@ def add_share_family(df: pd.DataFrame) -> pd.DataFrame:
 # ===========================
 # Core V1 composition
 # ===========================
-def build_breakout_features(snapshots: pd.DataFrame, enforce_month_grid: bool = False) -> pd.DataFrame:
+def build_breakout_features(
+    snapshots: pd.DataFrame,
+    enforce_month_grid: bool = False,
+    drop_cols: Optional[list[str]] = None,
+) -> pd.DataFrame:
     """
     Build leakage-safe breakout features from artist-month snapshots.
     Features use only months <= t (with explicit shift for "before_t" features).
@@ -277,6 +282,17 @@ def build_breakout_features(snapshots: pd.DataFrame, enforce_month_grid: bool = 
 
     if "genre_bucket" in df.columns:
         cols.append("genre_bucket")
+
+    if drop_cols:
+        drop_set = set(drop_cols)
+        known = set(cols)
+        unknown = sorted(drop_set - known)
+        if unknown:
+            raise ValueError(
+                f"Unknown drop_cols (not in exported columns): {unknown}. "
+                f"Check configs/breakout.yaml feature_sets."
+            )
+        cols = [c for c in cols if c not in drop_set]
 
     out = (
         df[cols]
