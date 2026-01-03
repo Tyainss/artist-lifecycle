@@ -7,6 +7,7 @@ import pandas as pd
 
 from common.config_manager import ConfigManager
 from core.build.build_features import build_breakout_features
+from core.build.build_breakout_modeling import build_breakout_modeling_table
 from core.build.build_snapshots import build_artist_month_snapshots
 
 
@@ -149,6 +150,20 @@ def main(repo_root: Path) -> None:
     features_out = features_dir / features_filename
     features.to_csv(features_out, index=False)
     logger.info(f"Wrote features: {features_out} | rows={len(features)}")
+
+    modeling_filename = project_cfg["breakout"].get("modeling_filename")
+    if not modeling_filename:
+        raise ValueError(
+            "Missing config: project.breakout.modeling_filename (configs/project.yaml). "
+            "Add it so the breakout modeling table output is config-driven."
+        )
+
+    logger.info("Building breakout modeling table (eligible + labeled + censored + cold-start)")
+    modeling = build_breakout_modeling_table(features, breakout_cfg, logger=logger)
+
+    modeling_out = features_dir / modeling_filename
+    modeling.to_csv(modeling_out, index=False)
+    logger.info(f"Wrote modeling table: {modeling_out} | rows={len(modeling)}")
 
 
 if __name__ == "__main__":
