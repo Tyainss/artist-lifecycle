@@ -1,5 +1,11 @@
 labels:
   horizon_months: 2
+  cold_start_buffer_months: 6
+
+eligibility:
+  active_plays_min: 3
+  discovered_within_months: 6
+  lookback_months: 3
 
 core_definition:
   plays_min: 20
