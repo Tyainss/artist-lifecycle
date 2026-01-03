@@ -18,6 +18,7 @@ paths:
 breakout:
   snapshots_filename: "artist_month_snapshots.csv"
   features_filename: "breakout_features.csv"
+  modeling_filename: "breakout_modeling.csv"
 
 time:
   timezone: "UTC"
