@@ -1,0 +1,1 @@
+from core.service.api import app
