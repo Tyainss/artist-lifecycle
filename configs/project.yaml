@@ -19,6 +19,8 @@ breakout:
   snapshots_filename: "artist_month_snapshots.csv"
   features_filename: "breakout_features.csv"
   modeling_filename: "breakout_modeling.csv"
+  model_filename: "model.bin"
+  metrics_filename: "metrics.json"
 
 time:
   timezone: "UTC"
