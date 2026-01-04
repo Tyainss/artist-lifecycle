@@ -1,0 +1,19 @@
+{
+  "mode": "breakout",
+  "model_family": "xgboost",
+  "model_path": "D:\\Transfer\u00eancias\\Desktop\\01. Projects\\09. ML Zoomcamp\\artist-lifecycle\\data\\models\\breakout\\model.bin",
+  "threshold": 0.5555253028869629,
+  "val_pr_auc": 0.05570639561867632,
+  "val_roc_auc": 0.9097222222222222,
+  "test_pr_auc": 0.07364444679618214,
+  "test_roc_auc": 0.8812125748502995,
+  "final_params": {
+    "max_depth": 3,
+    "eta": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8
+  },
+  "best_n_estimators": 13,
+  "scale_pos_weight_train": 87.3125,
+  "scale_pos_weight_trainval": 96.85
+}
