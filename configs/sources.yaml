@@ -1,0 +1,7 @@
+scrobbles:
+  path: data/curated/scrobbles.csv
+  format: csv
+  required_columns:
+    - artist_name
+    - track_name
+    - date

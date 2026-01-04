@@ -1,0 +1,71 @@
+labels:
+  horizon_months: 2
+  cold_start_buffer_months: 6
+
+eligibility:
+  active_plays_min: 3
+  discovered_within_months: 6
+  lookback_months: 3
+
+core_definition:
+  plays_min: 20
+  share_min: 0.01
+
+features:
+  enforce_month_grid: true
+
+  feature_set: "v1_reduced"
+
+  features_filename_by_set:
+    full: "breakout_features.csv"
+    v1_reduced: "breakout_features_v1_reduced.csv"
+
+  feature_sets:
+    full:
+      drop_cols: []
+
+    v1_reduced:
+      drop_cols:
+        - cumulative_plays_before_t
+        - unique_tracks_t
+        - plays_t_minus_1
+
+modeling:
+  xgboost:
+    mode: final   # final | tune
+
+    final_params:
+      max_depth: 3
+      eta: 0.05
+      subsample: 0.8
+      colsample_bytree: 0.8
+      
+    n_estimators: 2000
+    random_state: 42
+    n_jobs: -1
+    early_stopping_rounds: 50
+    reg_lambda: 1.0
+    min_child_weight: 1.0
+    grid:
+      - max_depth: 3
+        eta: 0.05
+        subsample: 0.8
+        colsample_bytree: 0.8
+      - max_depth: 4
+        eta: 0.05
+        subsample: 0.8
+        colsample_bytree: 0.8
+      - max_depth: 3
+        eta: 0.10
+        subsample: 0.8
+        colsample_bytree: 0.8
+      - max_depth: 4
+        eta: 0.10
+        subsample: 0.8
+        colsample_bytree: 0.8
+
+  thresholding:
+    policy: alerts_budget
+    max_median_alerts: 3
+    beta: 0.5
+    min_tp_on_val: 1
