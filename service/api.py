@@ -12,7 +12,11 @@ from core.serving.schemas import BreakoutPredictRequest, BreakoutPredictResponse
 
 
 repo_root = Path(__file__).resolve().parents[1]
-app = FastAPI()
+app = FastAPI(
+    title="artist-lifecycle",
+    description="Trying to predict different aspects of an artist's lifecycle",
+    version="0.1.0",
+)
 
 ARTIFACTS: Dict[str, Any] = {}
 FEATURE_COLUMNS: List[str] = []

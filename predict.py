@@ -1,1 +1,1 @@
-from core.service.api import app
+from service.api import app
