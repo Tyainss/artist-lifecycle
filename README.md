@@ -2,7 +2,7 @@
 <div align="center">
   <div id="user-content-toc">
     <ul>
-      <summary><h1 style="display: inline-block;">🚀 Breakout (Artist Lifecycle) 🚀</h1></summary>
+      <summary><h1 style="display: inline-block;">🚀 Breakout Artists 🚀</h1></summary>
     </ul>
   </div>
 </div>
@@ -10,26 +10,27 @@
 <br>
 <hr>
 
-Predict which artists are likely to **break out soon**, using **my listening history** from Last.fm, complemented with **Spotify metadata** (when available).
 
-The project builds an **artist-month** dataset from scrobbles, trains a classifier, and serves predictions via a small FastAPI API.
+_Predicting **breakout artists** from historical listening history, identifying the exact moment a new discovery becomes a core part of my musical rotation._
+
+Every month, I discover dozens of new artists. Most are passing phases, but a few become "Core Artists" - the ones I return to for months in a row. This project asks:
+
+> Can a model learn my early engagement patterns well enough to guess which new artist will become a permanent core part of my listening habits?
+
+By combining **Last.fm** scrobbles with **Spotify** metadata, I’ve built a pipeline to identify these breakout moments. It’s a way to turn personal curiosity into a production-ready ML experiment, using the same methodologies I would apply to real-world user retention or conversion problems.
+
+---
 
 ## At a glance
 
-- 🎯 **Goal**: Identify “breakout artists” based on my listening patterns.
-- 🧠 **Models**:
-  - XGBoost - **final production model**
-  - Logistic Regression - explored but not selected
-- 🧩 **Stack**: Python, scikit-learn, XGBoost, FastAPI, uv, Docker, Render
-- 🗂 **Key outputs**:
-  - Modeling dataset: `data/features/breakout_modeling.csv`
-  - Trained model: `data/models/breakout/model.bin`
-- 🗂 **Repo layout (key parts)**:
-  - `core/build/` – snapshot + feature + modeling table builders
-  - `core/modeling/train/` – training pipeline (writes `model.bin`)
-  - `service/` – FastAPI service (`service/api.py`)
-  - `notebooks/breakout/` – EDA + training notebook
-  - `configs/` – project paths, sources, and breakout rules
+- 🎯 **Goal**: Predict if a newly discovered artist will become a "Core Artist" in the next 60 days.
+- 🧠 **Model**: Logistic Regression (selected for interpretability and ranking performance).
+- 🧩 **Stack**: Python, scikit-learn, FastAPI, uv, Docker.
+- 📊 **Data**: 5+ years of listening history ([Last.fm](https://www.last.fm/)) enriched with artist metadata ([Spotify](https://developer.spotify.com/)).
+
+Predict which artists are likely to **break out soon**, using **my listening history** from Last.fm, complemented with **Spotify metadata** (when available).
+
+The project builds an **artist-month** dataset from scrobbles, trains a classifier, and serves predictions via a small FastAPI API.
 
 ---
 
@@ -64,15 +65,18 @@ Then go to `http://localhost:9696/docs` and call `POST /predict` with sample dat
 
 ## 1. Problem & use case
 
-I want to know if I can predict which new artists are going to become "core" part of my music listening habits, based on how I first listened to them, and based on other features from the artist's metadata.
+Since I started tracking my music, I’ve noticed a pattern: some artists have a "honeymoon period" that fades after a week, while others show a specific type of early "momentum" that signals they are here to stay. 
+
+This project turns that transition from "discovery" to "favorite" into a supervised learning problem.
 
 ### ML framing
 
-This is a **binary classification** problem at the **artist-month** level:
+The problem is modeled as a **binary classification** task at the `(artist, month)` level:
 
-* **Unit of analysis**: one row = `(artist_name, month=t)`
-* **Target**: whether the artist becomes “core” soon (see label definition below)
-* **Constraint**: the data is time-ordered, so splits must be time-based (no shuffling)
+* **Observation**: How I interact with an artist during the first 30–60 days of discovery.
+* **Target**: `is_breakout`
+    * `1` if the artist becomes a **Core Artist** in the following 2 months.
+    * `0` otherwise.
 
 ### How success is evaluated
 
@@ -86,33 +90,27 @@ Also tracked as supporting diagnostics:
 * thresholded results (precision/recall) under a controlled **alert volume** policy
 
 ---
-
 ## 2. Data & labels
 
-### 2.1 Input data
+### 2.1 Labeling & logic
 
-Source file:
+To identify a "breakout," I first had to define what it means for an artist to be a stable part of my listening habits. I call this becoming a **Core Artist**. 
 
-* `data/curated/scrobbles.csv` (1 row = 1 scrobble)
+Rather than choosing a single arbitrary number, I use two distinct milestones to capture "core" status. An artist-month is labeled as **Core** if they meet either of the following criteria:
 
-### 2.2 Core + breakout label
+* **The Intensity Milestone**: I listen to the artist **20 times or more** within a single month.
+* **The Share-of-Ear Milestone**: The artist accounts for at least **1% of my total monthly listening** (a high bar given the diversity of a typical month's scrobbles).
 
-An artist-month is considered **core** if either:
+### 2.2 The "Breakout" framing
 
-* `plays_t >= 20`, or
-* `share_t >= 0.01`
+The goal of the model is to predict these milestones *before* they become permanent. The logic focuses specifically on my "relationship" with new discoveries:
 
-The breakout label uses a short horizon:
+* **The Observation Window**: The model looks at the first 30 to 60 days of listening data for a "new" artist (someone appearing in my history for the first time within the last 6 months).
+* **The Prediction Target**: The model attempts to predict if that artist will hit a **Core** milestone in the immediate **60 days** following that initial observation.
 
-* `y(t)=1` if the artist becomes core in month `t+1` or `t+2` (horizon = 2 months)
 
-Training rows are filtered by a “new/active” eligibility rule:
 
-* active now: `plays_t >= 3`
-* discovered recently: first seen within 6 months
-* not already core recently (lookback = 3 months)
-* plus a cold-start buffer of 6 months
-
+This approach allows the pipeline to filter out "one-hit-wonders"—artists I might binge for a single weekend—and instead identify the specific early signals of long-term musical loyalty.
 
 ---
 
