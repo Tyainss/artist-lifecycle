@@ -134,22 +134,26 @@ Two models are compared:
 * Logistic Regression (baseline)
 * XGBoost (light tuning + early stopping)
 
-
 ### 3.3 Metrics & what they mean
 
 * **PR-AUC**: the primary metric (better for rare positives)
 * **ROC-AUC**: a supporting diagnostic
 * **Thresholded evaluation**: precision/recall under a controlled alert volume
 
-### 3.4 Logistic Regression vs XGBoost (numbers)
+### 3.4 Logistic Regression vs XGBoost (validation)
 
-Validation (model selection):
+| Model               | ROC-AUC | PR-AUC |
+| ------------------- | :-----: | :----: |
+| Logistic Regression |  0.8301 | 0.0325 |
+| XGBoost             |  0.9097 | 0.0557 |
 
-* **Logistic Regression**: PR-AUC = **0.0325**, threshold **T=0.5694**
-* **XGBoost**: PR-AUC = **0.0557**, threshold **T=0.5555**
+Validation (threshold selection):
+
+* Logistic Regression threshold: `T=0.5694`
+* XGBoost threshold: `T=0.5555`
 * Winner: **XGBoost** (higher validation PR-AUC)
 
-Test (evaluated once):
+Test:
 
 * prevalence: **10 positives out of 678 rows (1.48%)**
 * **PR-AUC = 0.0736**
@@ -160,66 +164,91 @@ Test (evaluated once):
 
 ## 4. Feature engineering
 
-Features are built from the artist-month snapshots. A few examples:
+The modeling table is at the **artist-month** level. Features fall into a few simple groups:
 
-* **Recency / lifecycle**
+### Listening volume & context
 
-  * `months_since_first_seen`, `is_first_month`
-* **Current-month activity**
+* `plays_t` - how many times I listened to the artist in month `t`.
+* `share_t` - share of my total scrobbles that month that belong to the artist.
+* `total_monthly_scrobbles` - my total scrobbles in month `t` (all artists).
 
-  * `plays_t`, `plays_per_track_t`, `days_active_t`
-* **Momentum**
+### Discovery / lifecycle
 
-  * `plays_prev3_mean`, `delta_1m`, `trend_slope_3m`
-* **Listening context**
+* `months_since_first_seen` - how many months since the artist first appeared in my history.
+* `is_first_month` - whether month `t` is the artist’s first month in my history.
+* `active_months_count_before_t` - number of months before `t` where the artist had any activity.
+* `cumulative_plays_before_t` - total plays before month `t`.
 
-  * `share_t`, `total_monthly_scrobbles`
-* **Novelty**
+### Engagement patterns
 
-  * `track_novelty_rate_t`
-* **History**
+* `days_active_t` - number of distinct days in month `t` where I listened to the artist.
+* `plays_per_track_t` - average plays per track in month `t` (repeat-heavy vs more variety).
+* `track_novelty_rate_t` - fraction of tracks in month `t` that were new for that artist (first-time listens).
+* `last_play_gap_days_t` - days since I last listened to the artist (measured at month end).
 
-  * `active_months_count_before_t`
+### Momentum
 
-The exported feature set is controlled by `configs/breakout.yaml` (`feature_set: v1_reduced`).
+* `plays_t_minus_1` - plays in the previous month.
+* `plays_prev3_mean` - average plays over the previous 3 months.
+* `delta_1m` - month-over-month change in plays (`plays_t - plays_t_minus_1`).
+* `delta_1m_pct` - month-over-month percent change in plays.
+* `ratio_to_prev3` - plays relative to recent baseline (`plays_t / plays_prev3_mean`).
+* `trend_slope_3m` - short-term trend slope over the last 3 months.
+* `share_delta_1m` - month-over-month change in `share_t`.
+* `prev_month_plays_was_zero` - whether the artist had zero plays in the previous month.
 
 ---
 
 ## 5. Project structure
 
 ```text
-configs/
-  project.yaml
-  sources.yaml
-  breakout.yaml
-
-core/
-  build/
-    build_snapshots.py
-    build_features.py
-    build_breakout_modeling.py
-  modeling/train/
-    train_breakout.py
-  scripts/
-    build_breakout.py
-  serving/
-    artifacts.py
-    schemas.py
-
-service/
-  api.py
-
-notebooks/breakout/
-  00_eda.ipynb
-  01_model_training.ipynb
-
-data/
-  curated/scrobbles.csv
-  processed/artist_month_snapshots.csv
-  features/breakout_features*.csv
-  features/breakout_modeling.csv
-  models/breakout/model.bin
-  metrics/breakout/metrics.json
+artist-lifecycle/
+├── common/
+│   ├── config_manager.py
+│   ├── io.py
+│   └── logging.py
+├── configs/
+│   ├── breakout.yaml
+│   ├── project.yaml
+│   └── sources.yaml
+├── core/
+│   ├── build/
+│   │   ├── build_breakout_modeling.py
+│   │   ├── build_features.py
+│   │   └── build_snapshots.py
+│   ├── modeling/
+│   │   └── train/
+│   │       └── train_breakout.py
+│   ├── scripts/
+│   │   └── build_breakout.py
+│   └── serving/
+│       ├── artifacts.py
+│       └── schemas.py
+├── data/
+│   ├── curated/
+│   │   └── scrobbles.csv
+│   ├── processed/
+│   │   └── artist_month_snapshots.csv
+│   ├── features/
+│   │   ├── breakout_features.csv
+│   │   ├── breakout_features_v1_reduced.csv
+│   │   └── breakout_modeling.csv
+│   ├── models/
+│   │   └── breakout/
+│   │       └── model.bin
+│   └── metrics/
+│       └── breakout/
+│           └── metrics.json
+├── notebooks/
+│   └── breakout/
+│       ├── 00_eda.ipynb
+│       └── 01_model_training.ipynb
+├── service/
+│   └── api.py
+├── Dockerfile
+├── pyproject.toml
+├── uv.lock
+└── README.md
 ```
 
 ---
